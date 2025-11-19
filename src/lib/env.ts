@@ -8,6 +8,7 @@ export const PROC_NOTIFY_EVENT = process.env.NEXT_PUBLIC_NOTIFY_EVENT_PROCESS_ID
 export const PROC_NOTIFY_SIGNATURE = process.env.NEXT_PUBLIC_NOTIFY_SIGNATURE_PROCESS_ID || 'demo-notify-signature';
 export const PROC_NOTIFY_SIGNATURE_FREE = process.env.NEXT_PUBLIC_NOTIFY_SIGNATURE_FREE_PROCESS_ID || 'demo-notify-signature-free';
 export const PROC_CREATE_ADDRESS = process.env.NEXT_PUBLIC_CREATE_ADDRESS_PROCESS_ID || 'demo-create-address';
+export const PROC_VALIDATE_LINK_ACCESS = process.env.NEXT_PUBLIC_VALIDATE_LINK_ACCESS_PROCESS_ID || '9404ee51-03f4-4d1d-b248-c61500145f9e';
 
 // URLs del sitio y proxy
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://manyao.pe';

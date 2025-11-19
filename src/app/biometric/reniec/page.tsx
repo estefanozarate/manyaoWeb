@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 // Simplified: use WebCamera with countdown/oval; backend hará la validación
 import { useSearchParams } from 'next/navigation';
 import { parseQR } from '@/lib';
-import { notifyEvent05, createAddressForWeb } from '@/lib/api';
+import { notifyEvent05, createAddressForWeb, validateLinkAccess } from '@/lib/api';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,8 @@ function ClientContent() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initDone, setInitDone] = useState(false);
+  const [linkValid, setLinkValid] = useState<boolean | null>(null); // null = validando, true = válido, false = inválido
+  const [linkValidationError, setLinkValidationError] = useState<string>('');
   type Notify05Detail = { response?: { isValid?: string | boolean; names?: string; paternal_surname?: string; maternal_surname?: string; validity?: string; auth_id?: string; resp?: { result?: string }; live?: { status?: boolean }; isLive?: string | boolean } };
   const [result, setResult] = useState<{
     success: boolean;
@@ -115,7 +117,36 @@ function ClientContent() {
     (async () => {
       // Generar un identificador estable: base local + DNI del link si existe
       const idParam = params.get('id') || '';
-      const { dni } = parseQR(idParam);
+      const { dni, key } = parseQR(idParam);
+      
+      // Validar acceso al link primero
+      if (dni && key) {
+        try {
+          setLinkValid(null);
+          const validationResp = await validateLinkAccess({ code: '05', dni, key });
+          const isValid = validationResp?.isValid === true || validationResp?.response?.isValid === true;
+          
+          if (!isValid) {
+            setLinkValid(false);
+            setLinkValidationError('Este enlace no tiene acceso válido o ya ha sido utilizado. Por favor, solicita un nuevo enlace.');
+            setInitDone(true);
+            return;
+          }
+          
+          setLinkValid(true);
+        } catch (e: any) {
+          console.error('[05] Error validando acceso al link:', e);
+          setLinkValid(false);
+          setLinkValidationError('Error al validar el acceso. Por favor, verifica que el enlace sea correcto.');
+          setInitDone(true);
+          return;
+        }
+      } else {
+        // Si no hay DNI o KEY, no podemos validar, pero permitimos continuar (para desarrollo)
+        console.warn('[05] No se pudo validar el link: faltan DNI o KEY');
+        setLinkValid(true);
+      }
+      
       // Si vienen address/f1 por query, úsalos de inmediato
       const qAddress = params.get('address') || '';
       const qF1 = params.get('f1') || '';
@@ -219,6 +250,44 @@ function ClientContent() {
     }
   }
 
+  // Mostrar error si el link no es válido
+  if (linkValid === false) {
+    return (
+      <main className="min-h-dvh flex flex-col items-center justify-center gap-6 p-6 bg-[#f5f5f5]">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="mb-4">
+            <svg className="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Acceso no autorizado</h1>
+          <p className="text-gray-600 mb-6">{linkValidationError || 'Este enlace no tiene acceso válido o ya ha sido utilizado.'}</p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-[#187773] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#156663] transition-colors"
+          >
+            Volver al inicio
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // Mostrar loading mientras se valida el link
+  if (linkValid === null) {
+    return (
+      <main className="min-h-dvh flex flex-col items-center justify-center gap-6 p-6 bg-[#f5f5f5]">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="mb-4">
+            <div className="mx-auto h-12 w-12 border-4 border-[#187773] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Validando acceso...</h1>
+          <p className="text-gray-600">Por favor espera mientras verificamos el enlace.</p>
+        </div>
+      </main>
+    );
+  }
+
   if (step === 'intro') {
     return (
       <IntroScreen
@@ -239,6 +308,8 @@ function ClientContent() {
         onCapture={(data) => { setPhoto(data); setStep('face-preview'); }}
         facingMode="user"
         mirror={true}
+        currentStep={1}
+        totalSteps={1}
       />
     );
   }
@@ -256,6 +327,8 @@ function ClientContent() {
         loading={loading}
         showAddressWarning={!address || !f1}
         imageType="selfie"
+        currentStep={1}
+        totalSteps={1}
       />
     );
   }

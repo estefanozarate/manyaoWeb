@@ -179,7 +179,7 @@ export default function WebCamera({ onCapture, autoCaptureEnabled = true, overla
       ) : (
         <div className='mt-4 flex flex-col items-center gap-3'>
           <span className='text-sm text-gray-500'>{ready ? '' : 'Iniciando cámara...'}</span>
-          {ready && autoCaptureEnabled && (
+          {ready && (
             <button
               type='button'
               onClick={takePhotoNow}

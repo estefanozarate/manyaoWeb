@@ -4,7 +4,6 @@ import WebCamera from "./WebCamera";
 import Logo from "./Logo";
 import ProgressIndicator from "./ProgressIndicator";
 import ThemeToggle from "./ThemeToggle";
-import { Camera } from "lucide-react";
 import { SITE_URL } from "@/lib/env";
 
 interface CameraScreenProps {
@@ -18,16 +17,23 @@ interface CameraScreenProps {
   overlay?: 'circle' | 'none';
   mirror?: boolean;
   cancelHref?: string;
+  currentStep?: number;
+  totalSteps?: number;
 }
 
 export default function CameraScreen({
+  title,
+  subtitle,
+  description,
   onCapture,
   onBack,
   facingMode = 'user',
   autoCaptureEnabled = true,
   overlay = 'circle',
   mirror,
-  cancelHref = SITE_URL
+  cancelHref = SITE_URL,
+  currentStep = 1,
+  totalSteps = 2
 }: CameraScreenProps) {
   return (
     <main className='min-h-dvh flex flex-col'>
@@ -38,16 +44,19 @@ export default function CameraScreen({
         <div className='w-full max-w-lg backdrop-blur-xl border rounded-3xl px-6 py-3 shadow-xl' style={{backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)'}}>
           <Logo />
           
-          <ProgressIndicator currentStep={3} totalSteps={4} />
+          <ProgressIndicator currentStep={currentStep} totalSteps={totalSteps} />
           
 
           <div className='mb-8 text-center'>
-            <h1 className='text-2xl md:text-3xl font-bold mb-3' style={{color: 'var(--text-primary)'}}>Captura tu rostro</h1>
-            <p className='text-base md:text-lg leading-relaxed' style={{color: 'var(--text-secondary)'}}>Mira directamente a la cámara para tomar tu foto</p>
+            <h1 className='text-2xl md:text-3xl font-bold mb-3' style={{color: 'var(--text-primary)'}}>{title}</h1>
+            <p className='text-base md:text-lg leading-relaxed' style={{color: 'var(--text-secondary)'}}>{subtitle}</p>
+            {description && (
+              <p className='text-sm mt-2' style={{color: 'var(--text-muted)'}}>{description}</p>
+            )}
           </div>
 
           {/* Cámara */}
-          <div className='mb-6'>
+          <div className='mb-6 flex justify-center'>
             <WebCamera 
               onCapture={onCapture}
               facingMode={facingMode}

@@ -17,9 +17,13 @@ interface CameraPreviewProps {
   loadingText?: string;
   showAddressWarning?: boolean;
   imageType?: 'selfie' | 'document'; // Para ajustar las dimensiones según el tipo
+  currentStep?: number;
+  totalSteps?: number;
 }
 
 export default function CameraPreview({
+  title,
+  subtitle,
   imageSrc,
   imageAlt,
   onRetake,
@@ -29,7 +33,9 @@ export default function CameraPreview({
   loading = false,
   loadingText = "Enviando…",
   showAddressWarning = false,
-  imageType = 'selfie'
+  imageType = 'selfie',
+  currentStep = 1,
+  totalSteps = 2
 }: CameraPreviewProps) {
   return (
     <main className='min-h-dvh flex flex-col'>
@@ -40,12 +46,12 @@ export default function CameraPreview({
         <div className='w-full max-w-lg backdrop-blur-xl border rounded-3xl px-6 py-3 shadow-xl' style={{backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)'}}>
           <Logo />
           
-          <ProgressIndicator currentStep={3} totalSteps={4} />
+          <ProgressIndicator currentStep={currentStep} totalSteps={totalSteps} />
           
 
           <div className='mb-8 text-center'>
-            <h1 className='text-2xl md:text-3xl font-bold mb-3' style={{color: 'var(--text-primary)'}}>Revisa tu foto</h1>
-            <p className='text-base md:text-lg leading-relaxed' style={{color: 'var(--text-secondary)'}}>Verifica que tu rostro se vea claramente, caso contrario tome otra foto</p>
+            <h1 className='text-2xl md:text-3xl font-bold mb-3' style={{color: 'var(--text-primary)'}}>{title}</h1>
+            <p className='text-base md:text-lg leading-relaxed' style={{color: 'var(--text-secondary)'}}>{subtitle}</p>
           </div>
 
           {/* Imagen de preview */}

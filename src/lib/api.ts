@@ -1,4 +1,4 @@
-import { API_KEY, SCOPE, PROC_NOTIFY_EVENT, PROC_NOTIFY_SIGNATURE, PROC_NOTIFY_SIGNATURE_FREE, PROC_VALIDATE_DNI_WITH_PHOTO, PROC_CREATE_ADDRESS, PROXY_PHP_URL } from './env';
+import { API_KEY, SCOPE, PROC_NOTIFY_EVENT, PROC_NOTIFY_SIGNATURE, PROC_NOTIFY_SIGNATURE_FREE, PROC_VALIDATE_DNI_WITH_PHOTO, PROC_CREATE_ADDRESS, PROC_VALIDATE_LINK_ACCESS, PROXY_PHP_URL } from './env';
 
 type Param = { name: string; value: string };
 
@@ -157,4 +157,19 @@ export async function notifyEventSignatureFree({
   return postExec(PROC_NOTIFY_SIGNATURE_FREE, params);
 }
 
+/**
+ * Valida si un link generado tiene acceso válido
+ * @param code - Código del flujo (04, 05, etc.)
+ * @param dni - DNI del usuario
+ * @param key - KEY/Firma del QR (0x1234...)
+ * @returns Promise con { isValid: boolean }
+ */
+export async function validateLinkAccess({ code, dni, key }: { code: string; dni: string; key: string; }) {
+  const params: Param[] = [
+    { name: 'value1', value: code }, // Código del flujo (04, 05)
+    { name: 'value2', value: dni },   // DNI
+    { name: 'value3', value: key },   // KEY/Firma (0x1234...)
+  ];
+  return postExec(PROC_VALIDATE_LINK_ACCESS, params);
+}
 

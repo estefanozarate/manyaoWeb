@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { useEffect, useState, useId } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { parseQR } from '@/lib';
-import { createAddressForWeb, notifyEventSignature, notifyEventSignatureFree } from '@/lib/api';
+import { createAddressForWeb, notifyEventSignature, notifyEventSignatureFree, validateLinkAccess } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 // Componentes reutilizables
@@ -17,7 +17,7 @@ import DocumentViewer from '@/components/DocumentViewer';
 import ThemeToggle from '@/components/ThemeToggle';
 import ProgressIndicator from '@/components/ProgressIndicator';
 import Logo from '@/components/Logo';
-import { ContactRound } from 'lucide-react';
+
 
 // Función para limpiar mensajes del API
 const cleanApiMessage = (message: string): string => {
@@ -254,6 +254,8 @@ function ClientContent() {
   const [manualMaternalSurname, setManualMaternalSurname] = useState<string>(''); // Apellido materno
   const [loading, setLoading] = useState(false);
   const [initDone, setInitDone] = useState(false);
+  const [linkValid, setLinkValid] = useState<boolean | null>(null); // null = validando, true = válido, false = inválido
+  const [linkValidationError, setLinkValidationError] = useState<string>('');
   
   // Estado para el documento PDF
   const [documentId, setDocumentId] = useState<string>('');
@@ -285,8 +287,65 @@ function ClientContent() {
     if (initDone || (address && f1)) return;
     (async () => {
       const idParam = params.get('id') || '';
-      const { key: qrKey } = parseQR(idParam); // En flujo 03, el segundo parámetro es 'key', no 'dni'
+      const { key: qrKey, thirdValue } = parseQR(idParam); // En flujo 03, el segundo parámetro es 'key', no 'dni'
       setQrKey(qrKey || '');
+      
+      // Validar acceso al link primero
+      // Para código 03: value1=03, value2=KEY (ID del documento), value3=thirdValue (firma/0x1234...)
+      if (qrKey && thirdValue) {
+        try {
+          setLinkValid(null);
+          // Para el código 03, usamos el KEY como value2 y thirdValue como value3
+          console.log("PARAMS");
+          const [_id, _dni, _key] = idParam.split(":");
+          console.log(idParam);
+          const validationResp = await validateLinkAccess({ 
+            code: _id, 
+            dni: _dni, 
+            key: _key 
+          });
+          console.log(validationResp?.response?.options)
+          const options_ = validationResp?.response?.options;
+          const normalizeBits = (bits: string): string => {
+          const clean = bits.replace(/[^01]/g, "");
+          return (clean + "00000").slice(0, 5);
+         };
+
+         const resultado = normalizeBits(options_);
+         localStorage.setItem("flags", resultado);
+
+         console.log("RESULT:");
+         console.log(result)
+
+          const apiCode = validationResp?.code;
+          const isValid = validationResp?.response?.isvalid === true || validationResp?.response?.isValid === true;
+          if (apiCode !== 200) {
+            setLinkValid(false);
+            setLinkValidationError(`Error de validación. Código: ${apiCode}`);
+            setInitDone(true);
+            return;
+          }
+
+          if (!isValid) {
+            setLinkValid(false);
+            setLinkValidationError('Este enlace no tiene acceso válido o ya ha sido utilizado. Por favor, solicita un nuevo enlace.');
+            setInitDone(true);
+            return;
+          }
+          
+          setLinkValid(true);
+        } catch (e: unknown) {
+          console.error('[03] Error validando acceso al link:', e);
+          setLinkValid(false);
+          setLinkValidationError('Error al validar el acceso. Por favor, verifica que el enlace sea correcto.');
+          setInitDone(true);
+          return;
+        }
+      } else {
+        // Si no hay KEY o thirdValue, no podemos validar, pero permitimos continuar (para desarrollo)
+        console.warn('[03] No se pudo validar el link: faltan KEY o thirdValue');
+        setLinkValid(true);
+      }
       
       // Extraer el ID del documento desde la URL
       // Formato esperado: https://api.stamping.io/exec/processId/file_O{documentId}.pdf
@@ -507,6 +566,44 @@ function ClientContent() {
     }
   }
 
+  // Mostrar error si el link no es válido
+  if (linkValid === false) {
+    return (
+      <main className="min-h-dvh flex flex-col items-center justify-center gap-6 p-6 bg-[#f5f5f5]">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="mb-4">
+            <svg className="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Acceso no autorizado</h1>
+          <p className="text-gray-600 mb-6">{linkValidationError || 'Este enlace no tiene acceso válido o ya ha sido utilizado.'}</p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-[#187773] text-white py-3 px-6 rounded-lg font-semibold hover:bg-[#156663] transition-colors"
+          >
+            Volver al inicio
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // Mostrar loading mientras se valida el link
+  if (linkValid === null) {
+    return (
+      <main className="min-h-dvh flex flex-col items-center justify-center gap-6 p-6 bg-[#f5f5f5]">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="mb-4">
+            <div className="mx-auto h-12 w-12 border-4 border-[#187773] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Validando acceso...</h1>
+          <p className="text-gray-600">Por favor espera mientras verificamos el enlace.</p>
+        </div>
+      </main>
+    );
+  }
+
   if (step === 'intro') {
     return (
       <div className="min-h-dvh flex flex-col">
@@ -600,15 +697,19 @@ function ClientContent() {
       <ChoiceScreen
         onChoiceSelected={(selectedChoice) => {
           setChoice(selectedChoice);
+
           if (selectedChoice === 'biometric') {
-            setStep('dni-input'); // PRO: Ir a captura de DNI primero
+            // PRO: Ir a captura de DNI primero
+            setStep('dni-input');
           } else if (selectedChoice === 'cedula') {
-            setStep('manual-data'); // FREE: Ir directamente a datos manuales
+            // FREE: Ir directamente a datos manuales
+            setStep('manual-data');
           }
         }}
       />
     );
   }
+
 
   if (step === 'photo') {
     console.log('[DEBUG] Mostrando CameraScreen (Paso 3: Captura de foto)');

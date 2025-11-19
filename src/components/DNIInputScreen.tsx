@@ -3,7 +3,6 @@ import { useState, useId } from "react";
 import Logo from "./Logo";
 import ProgressIndicator from "./ProgressIndicator";
 import ThemeToggle from "./ThemeToggle";
-import { ContactRound } from "lucide-react";
 
 interface DNIInputScreenProps {
   title: string;
